@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Grab it</title>
+    <style>
+        /* --- Start: Ersetzungen für Tailwind CSS & Google Fonts --- */
+
+        /* Ersetzt Tailwind-Klassen auf dem Body-Element und die Google Font "Inter" */
+        body {
+            font-family: Arial, Helvetica, sans-serif; /* Standard-Schriftart anstelle von Google Font */
+            overscroll-behavior: none;
+            touch-action: manipulation;
+            background-color: #f7fafc; /* Ersetzt bg-gray-100 */
+            height: 100vh; /* Ersetzt h-screen */
+            overflow: hidden; /* Ersetzt overflow-hidden */
+            position: relative; /* Ersetzt relative */
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Ersetzt die Tailwind-Klasse "hidden" */
+        .hidden {
+            display: none;
+        }
+
+        /* Stile für die Namensanzeige, die vorher von Tailwind kamen */
+        #salt-name-display {
+            position: absolute;
+            top: 1.25rem; /* 20px */
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: white;
+            padding: 0.75rem; /* 12px */
+            border-radius: 0.5rem; /* 8px */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            font-weight: bold;
+            text-align: center;
+            min-width: 250px;
+            font-size: 2.5rem;
+        }
+
+        /* Stile für den Spielbereich, die vorher von Tailwind kamen */
+        #game-area {
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+        
+        /* Stile für den Hand-Container, die vorher von Tailwind kamen */
+        #hands-container {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+        }
+        
+        /* Stile für die Start-Fehlermeldung, die vorher von Tailwind kamen */
+        #start-error-message {
+            color: #f87171; /* text-red-400 */
+            margin-top: 1rem; /* mt-4 */
+            font-weight: 600; /* font-semibold */
+        }
+
+        /* --- Ende: Ersetzungen für Tailwind CSS & Google Fonts --- */
+
+
+        /* Globale Stile & Spiel-Elemente */
+        .hand { width: 160px; height: 160px; background-color: #f0f0f0; border: 2px solid #ccc; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 80px; cursor: pointer; position: absolute; transition: transform 0.2s ease-out, background-color 0.2s ease-out; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+        .hand-tl { top: 5%; left: 5%; }
+        .hand-tr { top: 5%; right: 5%; }
+        .hand-bl { bottom: 8%; left: 5%; }
+        .hand-br { bottom: 8%; right: 5%; }
+        .hand-single { bottom: 8%; left: 50%; transform: translateX(-50%); }
+
+
+        .card { width: auto; min-width: 200px; min-height: 100px; background-color: white; border: 2px solid #333; border-radius: 10px; display: flex; justify-content: center; align-items: center; font-size: 2.5rem; font-weight: bold; text-align: center; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 15px 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); visibility: hidden; opacity: 0; transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out; }
+        .card sub { line-height: 0; position: relative; vertical-align: baseline; top: 0.3em; }
+        .card.visible { visibility: visible; opacity: 1; }
+
+        .grabbing { background-color: #a0aec0; z-index: 10; }
+        .hand-tl.grabbing { transform: translate(calc(50vw - 80px - 5vw), calc(50vh - 80px - 5vh)); }
+        .hand-tr.grabbing { transform: translate(calc(-50vw + 80px + 5vw), calc(50vh - 80px - 5vh)); }
+        .hand-bl.grabbing { transform: translate(calc(50vw - 80px - 5vw), calc(-50vh + 80px + 8vh)); }
+        .hand-br.grabbing { transform: translate(calc(-50vw + 80px + 5vw), calc(-50vh + 80px + 8vh)); }
+        .hand-single.grabbing { transform: translate(-50%, calc(-50vh + 80px + 8vh)); }
+
+
+        .message-box { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: rgba(0, 0, 0, 0.7); color: white; padding: 15px; border-radius: 50%; width: 80px; height: 80px; display: none; justify-content: center; align-items: center; font-size: 40px; z-index: 100; }
+
+        /* Punkteanzeige */
+        .player-score { position: absolute; background-color: rgba(255, 255, 255, 0.9); color: #333; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 1.8em; font-weight: bold; min-width: 120px; text-align: center; z-index: 5; }
+        .score-tl { top: calc(5% + 160px + 10px); left: 5%; }
+        .score-tr { top: calc(5% + 160px + 10px); right: 5%; }
+        .score-bl { bottom: calc(8% + 160px + 10px); left: 5%; }
+        .score-br { bottom: calc(8% + 160px + 10px); right: 5%; }
+        .score-single { bottom: calc(8% + 160px + 10px); left: 50%; transform: translateX(-50%); }
+
+
+        /* Startbildschirm */
+        #start-screen { display: flex; flex-direction: column; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); z-index: 200; color: white; text-align: center; padding: 20px; }
+        #start-screen h1 { font-size: 6rem; font-weight: bold; margin-bottom: 1rem; text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3); }
+        #start-screen p { font-size: 1.25rem; margin-bottom: 1rem; }
+
+        /* Styling für Themenauswahl */
+        #topic-selection { background-color: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 10px; margin-bottom: 1.5rem; max-width: 90%; width: 400px; }
+        #topic-selection h3 { font-size: 1.65rem; font-weight: bold; margin-bottom: 10px; color: #eee; }
+        .topic-item { display: flex; align-items: center; margin-bottom: 8px; cursor: pointer; }
+        .topic-item input[type="checkbox"] { margin-right: 10px; width: 18px; height: 18px; cursor: pointer; accent-color: #764ba2; }
+        .topic-item label { font-size: 1rem; color: #f0f0f0; flex-grow: 1; cursor: pointer; }
+        .topic-item label small { color: #ccc; font-size: 0.85em; margin-left: 5px; }
+
+        #start-screen button { background-color: rgba(255, 255, 255, 0.2); color: white; padding: 15px 30px; border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 12px; font-size: 1.1em; cursor: pointer; margin: 5px; transition: background-color 0.3s, transform 0.1s; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+        #start-screen button:hover { background-color: rgba(255, 255, 255, 0.3); }
+        #start-screen button:active { transform: scale(0.98); }
+
+        /* Endbildschirm */
+        #end-screen { display: none; flex-direction: column; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #434343 0%, #000000 100%); z-index: 150; color: white; text-align: center; padding: 20px; box-sizing: border-box; }
+        #end-screen h2 { font-size: 2.5rem; font-weight: bold; margin-bottom: 1rem; color: #ffd700; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5); }
+        #podium-container { display: flex; justify-content: center; align-items: flex-end; width: 90%; max-width: 500px; height: 250px; margin-bottom: 2rem; gap: 5px; }
+        .podium-place { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; flex-grow: 1; border-radius: 8px 8px 0 0; padding: 15px 10px; box-shadow: inset 0 -5px 10px rgba(0,0,0,0.2); text-align: center; color: #333; font-weight: bold; overflow: hidden; transition: height 0.5s ease-in-out; }
+        .podium-place .player-name { font-size: 1.1em; margin-bottom: 5px; word-break: break-word; }
+        .podium-place .player-score-final { font-size: 1em; }
+        .podium-place .crown { font-size: 1.8em; line-height: 1; margin-bottom: 5px; color: #ffd700; }
+        .podium-rank-1 { height: 100%; background-color: #ffd700; order: 2; }
+        .podium-rank-2 { height: 75%; background-color: #c0c0c0; order: 1; }
+        .podium-rank-3 { height: 60%; background-color: #cd7f32; order: 3; }
+        .podium-empty { height: 0%; background-color: transparent; box-shadow: none; border: none; padding: 0; }
+        #single-player-result { display: none; font-size: 1.8rem; margin-bottom: 2rem; padding: 20px; background-color: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+        #end-screen button { background-color: #4CAF50; color: white; padding: 12px 25px; border: none; border-radius: 8px; font-size: 1.1em; cursor: pointer; margin-top: 10px; transition: background-color 0.3s, transform 0.1s; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        #end-screen button:hover { background-color: #45a049; }
+        #end-screen button:active { transform: scale(0.98); }
+
+        /* Rundenanzeige */
+        #round-display {
+            position: absolute;
+            top: 12%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 8px 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-size: 1.35em;
+            font-weight: bold;
+            color: #333;
+            z-index: 5;
+        }
+
+        * { touch-action: manipulation; }
+    </style>
+    <!-- Externe Quellen (Google Fonts, Tailwind) wurden entfernt, um DSGVO-konform zu sein -->
+</head>
+<body>
+
+    <div id="start-screen">
+        <h1>Grab it</h1>
+        <div id="topic-selection">
+            <h3>Themen auswählen:</h3>
+            <div class="topic-item"> <input type="checkbox" id="topic-salts" value="salts" checked> <label for="topic-salts">Salze <small>(Bsp. NaCl)</small></label> </div>
+            <div class="topic-item"> <input type="checkbox" id="topic-molecular" value="molecular" checked> <label for="topic-molecular">Molekulare Verbindungen <small>(Bsp. CO₂)</small></label> </div>
+            <div class="topic-item"> <input type="checkbox" id="topic-acidsbases" value="acidsbases" checked> <label for="topic-acidsbases">Säuren & Basen <small>(Bsp. HCl, NaOH)</small></label> </div>
+            <div class="topic-item"> <input type="checkbox" id="topic-organic" value="organic" checked> <label for="topic-organic">Organische Verbindungen <small>(Bsp. CH₄)</small></label> </div>
+        </div>
+        <p>Anzahl der Spieler wählen:</p>
+        <div>
+            <button onclick="startGame(1)">1 Spieler</button>
+            <button onclick="startGame(2)">2 Spieler</button>
+            <button onclick="startGame(3)">3 Spieler</button>
+            <button onclick="startGame(4)">4 Spieler</button>
+        </div>
+        <!-- Tailwind-Klassen wurden durch die ID #start-error-message im CSS ersetzt -->
+        <p id="start-error-message" class="hidden"></p>
+    </div>
+
+    <!-- Tailwind-Klassen wurden durch die ID #game-area im CSS ersetzt -->
+    <div id="game-area" class="hidden">
+        <!-- Tailwind-Klassen wurden durch die ID #salt-name-display im CSS ersetzt -->
+        <div id="salt-name-display">Warte auf Start...</div>
+        <!-- Tailwind-Klassen wurden durch die ID #hands-container im CSS ersetzt -->
+        <div id="hands-container"></div>
+        <div id="card" class="card">Formel</div>
+        <div id="round-display"> Runde: 0 / 10 </div>
+    </div>
+
+    <div id="message-box" class="message-box"></div>
+
+    <div id="end-screen">
+        <h2>And the winner is…</h2>
+        <div id="podium-container"></div>
+        <div id="single-player-result"></div>
+        <button onclick="restartGame()">Nochmal spielen</button>
+    </div>
+
+    <script>
+        // --- Strukturierte Daten für chemische Verbindungen ---
+        const compoundData = {
+            salts: `Natriumchlorid (NaCl), Natriumoxid (Na₂O), Natriumbromid (NaBr), Natriumsulfid (Na₂S), Natriumsulfat (Na₂SO₄), Natriumnitrat (NaNO₃), Kaliumphosphat (K₃PO₄), Kaliumnitrit (KNO₂), Magnesiumchlorid (MgCl₂), Magnesiumoxid (MgO), Magnesiumsulfat (MgSO₄), Magnesiumnitrat (Mg(NO₃)₂), Magnesiumphosphat (Mg₃(PO₄)₂), Kaliumcarbid (K₄C), Aluminiumnitrit (Al(NO₂)₃), Aluminiumphosphat (AlPO₄), Eisen(III)oxid (Fe₂O₃), Eisen(II)oxid (FeO), Kupfer(II)oxid (CuO), Kupfer(I)oxid (Cu₂O), Kaliumpermanganat (KMnO₄), Chrom(III)sulfat (Cr₂(SO₄)₃), Zink(II)carbonat (ZnCO₃), Natriumsulfit (Na₂SO₃), Kaliumphosphit (K₂SO₃)`,
+            molecular: `Schwefeldioxid (SO₂), Schwefeltrioxid (SO₃), Kohlenstoffmonoxid (CO), Kohlenstoffdioxid (CO₂), Diphosphorpentaoxid (P₂O₅), Chlordioxid (ClO₂), Distickstofftetraoxid (N₂O₄), Distickstoffmonoxid (N₂O), Stickstoffmonoxid (NO), Stickstoffdioxid (NO₂), Dichloromonoxid (Cl₂O), Dichlorheptoxid (Cl₂O₇), Siliciumdioxid (SiO₂), Phosphortrichlorid (PCl₃), Phosphorpentachlorid (PCl₅), Schwefelhexafluorid (SF₆), Schwefeltetrachlorid (SCl₄), Kohlenstofftetrachlorid (CCl₄), Dibortrioxid (B₂O₃), Arsentrioxid (As₂O₃), Diiodpentaoxid (I₂O₅), Xenondifluorid (XeF₂)`,
+            acidsbases: `Salzsäure (HCl), Schwefelsäure (H₂SO₄), Phosphorsäure (H₃PO₄), Phosphorige Säure (H₃PO₃), Schweflige Säure (H₂SO₃), Kohlensäure (H₂CO₃), Salpetersäure (HNO₃), Salpetrige Säure (HNO₂), Blausäure (HCN), Essigsäure (CH₃COOH), Natriumhydroxid (NaOH), Ammoniak (NH₃), Calciumhydroxid (Ca(OH)₂), Kalkwasser (Ca(OH)₂), Kaliumhydroxid (KOH), Natronlauge (NaOH), Flusssäure (HF)`,
+            organic: `Methan (CH₄), Ethan (C₂H₆), Ethen (C₂H₄), Ethin (C₂H₂), Methanol (CH₃OH), Ethanol (C₂H₅OH), Essigsäure (CH₃COOH), Propen (C₃H₆), Propan (C₃H₈), But-1-in (C₄H₆), Aceton (C₃H₆O), Acetaldehyd (C₂H₄O)`
+         };
+
+        // *** Überarbeitete parseCompoundString Funktion ***
+        function parseCompoundString(compoundString) {
+            const compounds = [];
+            const regex = /^(.*?)\s+\(([^()]+)\)$/;
+            compoundString.split(',').forEach(part => {
+                const trimmedPart = part.trim();
+                if (trimmedPart) {
+                    const match = trimmedPart.match(regex);
+                    if (match && match[1] && match[2]) {
+                        compounds.push({ name: match[1].trim(), formula: match[2].trim() });
+                    } else {
+                         const complexRegex = /^(.*?)\s+\((.*)\)$/;
+                         const complexMatch = trimmedPart.match(complexRegex);
+                         if (complexMatch && complexMatch[1] && complexMatch[2]) {
+                              compounds.push({ name: complexMatch[1].trim(), formula: complexMatch[2].trim() });
+                         } else { console.warn(`Konnte Teil nicht parsen (kein klares Format): "${trimmedPart}"`); }
+                    }
+                }
+            });
+            return compounds;
+        }
+
+
+        // --- Parsed Daten und Gesamtliste ---
+        let parsedCompoundData = {}; let allParsedCompounds = []; let allFormulas = [];
+        let dataInitializationError = false;
+
+        // *** Initialisierungsfunktion mit Fehlerbehandlung ***
+        function initializeCompoundData() {
+             dataInitializationError = false;
+             try {
+                parsedCompoundData = {}; allParsedCompounds = []; allFormulas = [];
+                for (const category in compoundData) {
+                    if (compoundData.hasOwnProperty(category)) {
+                        parsedCompoundData[category] = parseCompoundString(compoundData[category]);
+                        allParsedCompounds = allParsedCompounds.concat(parsedCompoundData[category]);
+                    }
+                }
+                const totalSourceEntries = Object.values(compoundData).reduce((sum, str) => sum + (str.split(',').filter(s => s.trim() !== '').length), 0);
+                if(allParsedCompounds.length !== totalSourceEntries) {
+                    console.warn(`Parsing Diskrepanz: ${totalSourceEntries} Einträge erwartet, ${allParsedCompounds.length} geparst.`);
+                }
+
+                allFormulas = [...new Set(allParsedCompounds.map(c => c.formula).concat([
+                    "H₂O", "O₂", "N₂", "H₂", "C₆H₁₂O₆", "FeCl₂", "AgNO₃", "H₂O₂", "SO₂", "P₄O₁₀", "NO₂"
+                ]))];
+                console.log("Verbindungsdaten initialisiert und geparst. Anzahl Verbindungen:", allParsedCompounds.length);
+             } catch (error) {
+                 dataInitializationError = true;
+                 console.error("Fehler bei der Initialisierung der Verbindungsdaten:", error);
+                 const errorMsgElement = document.getElementById('start-error-message');
+                 if(errorMsgElement) {
+                     errorMsgElement.textContent = "Fehler beim Laden der Chemiedaten. Bitte Code prüfen.";
+                     errorMsgElement.classList.remove('hidden');
+                 }
+             }
+         }
+        initializeCompoundData();
+
+        // --- Spiel Zustand ---
+        let players = []; let currentRound = 0; const totalRounds = 10; let currentSalt = null; let currentCardFormula = null; let cardVisible = false; let cardTimeout = null; let cardSequence = []; let cardSequenceIndex = 0; let gameActive = false; let grabCooldown = false; let roundSalts = [];
+        let isSinglePlayer = false;
+
+        // --- DOM Elemente ---
+        const startScreen = document.getElementById('start-screen');
+        const gameArea = document.getElementById('game-area');
+        const saltNameDisplay = document.getElementById('salt-name-display');
+        const handsContainer = document.getElementById('hands-container');
+        const cardElement = document.getElementById('card');
+        const roundDisplay = document.getElementById('round-display');
+        const messageBox = document.getElementById('message-box');
+        const endScreen = document.getElementById('end-screen');
+        const podiumContainer = document.getElementById('podium-container');
+        const singlePlayerResult = document.getElementById('single-player-result');
+        const startErrorMessage = document.getElementById('start-error-message');
+
+        // --- Hilfsfunktionen ---
+        function shuffleArray(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } return array; }
+        function showMessage(text, duration = 1000) { messageBox.textContent = text; messageBox.style.display = 'flex'; setTimeout(() => { messageBox.style.display = 'none'; }, duration); }
+        function updateScores() { players.forEach(player => { const scoreElement = document.getElementById(`score-${player.id}`); if (scoreElement) { scoreElement.textContent = isSinglePlayer ? `Punkte: ${player.score}` : `P${player.id.substring(1)}: ${player.score}`; } }); }
+        function updateRoundDisplay() { roundDisplay.textContent = `Runde: ${currentRound} / ${totalRounds}`; }
+
+        // --- Spiel Logik ---
+        function startGame(numPlayers) {
+            console.log(`startGame(${numPlayers}) aufgerufen.`);
+             if (dataInitializationError) { console.error("Spielstart verhindert, da Dateninitialisierung fehlgeschlagen ist."); return; }
+            startErrorMessage.classList.add('hidden');
+            const selectedCategories = []; const checkboxes = document.querySelectorAll('#topic-selection input[type="checkbox"]:checked'); checkboxes.forEach(checkbox => { selectedCategories.push(checkbox.value); }); console.log("Ausgewählte Kategorien:", selectedCategories);
+            if (selectedCategories.length === 0) { console.log("Keine Kategorie ausgewählt."); startErrorMessage.textContent = "Bitte wähle mindestens ein Thema aus!"; startErrorMessage.classList.remove('hidden'); return; }
+            let activeCompounds = []; selectedCategories.forEach(category => { if (parsedCompoundData[category]) { activeCompounds = activeCompounds.concat(parsedCompoundData[category]); } else { console.warn(`Kategorie "${category}" nicht in parsedCompoundData gefunden.`); } }); console.log("Anzahl aktiver Verbindungen:", activeCompounds.length);
+             if (activeCompounds.length < totalRounds) { console.log("Nicht genügend Verbindungen."); startErrorMessage.textContent = `Nicht genügend Verbindungen (${activeCompounds.length}) für ${totalRounds} Runden in den gewählten Themen. Bitte mehr Themen wählen.`; startErrorMessage.classList.remove('hidden'); return; }
+            console.log(`Starte Spiel mit ${numPlayers} Spielern und ${activeCompounds.length} aktiven Verbindungen.`); isSinglePlayer = (numPlayers === 1); startScreen.style.display = 'none'; gameArea.classList.remove('hidden'); players = []; currentRound = 0; gameActive = true; grabCooldown = false; handsContainer.innerHTML = ''; endScreen.style.display = 'none'; podiumContainer.style.display = 'none'; singlePlayerResult.style.display = 'none';
+            const multiPlayerPositions = ['tl', 'tr', 'bl', 'br']; const handEmojis = ['✋🏻', '✋🏼', '✋🏽', '✋🏾', '✋🏿'];
+            if (isSinglePlayer) { const playerId = 'p1'; const position = 'single'; players.push({ id: playerId, score: 0, position: position }); const hand = document.createElement('div'); hand.id = playerId; hand.classList.add('hand', `hand-${position}`); hand.textContent = handEmojis[0]; hand.dataset.playerId = playerId; hand.addEventListener('touchstart', handleGrab, { passive: false }); hand.addEventListener('mousedown', handleGrab); handsContainer.appendChild(hand); const scoreElement = document.createElement('div'); scoreElement.id = `score-${playerId}`; scoreElement.classList.add('player-score', `score-${position}`); scoreElement.textContent = `Punkte: 0`; handsContainer.appendChild(scoreElement); }
+            else { for (let i = 0; i < numPlayers; i++) { const playerId = `p${i + 1}`; const position = multiPlayerPositions[i]; players.push({ id: playerId, score: 0, position: position }); const hand = document.createElement('div'); hand.id = playerId; hand.classList.add('hand', `hand-${position}`); hand.textContent = handEmojis[i % handEmojis.length]; hand.dataset.playerId = playerId; hand.addEventListener('touchstart', handleGrab, { passive: false }); hand.addEventListener('mousedown', handleGrab); handsContainer.appendChild(hand); const scoreElement = document.createElement('div'); scoreElement.id = `score-${playerId}`; scoreElement.classList.add('player-score', `score-${position}`); scoreElement.textContent = `P${i + 1}: 0`; handsContainer.appendChild(scoreElement); } }
+            roundSalts = shuffleArray([...activeCompounds]).slice(0, totalRounds); console.log("Runden-Verbindungen ausgewählt:", roundSalts.length);
+            console.log("Spiel initialisiert. Starte erste Runde."); setTimeout(nextRound, 500);
+         }
+
+        function nextRound() {
+            if (!gameActive) return; currentRound++; console.log(`Starte Runde ${currentRound}`); updateRoundDisplay();
+            if (currentRound > totalRounds) { endGame(); return; }
+            if (!roundSalts || roundSalts.length === 0 || currentRound > roundSalts.length) { console.error("Fehler: Ungültiger Zugriff auf roundSalts in nextRound."); gameActive = false; return; }
+            currentSalt = roundSalts[currentRound - 1];
+            if (!currentSalt) { console.error(`Fehler: Kein currentSalt für Runde ${currentRound} gefunden.`); gameActive = false; return; }
+            saltNameDisplay.textContent = currentSalt.name; console.log(`Aktuelles Salz: ${currentSalt.name} (Formel: ${currentSalt.formula})`);
+            cardSequence = generateCardSequence(currentSalt.formula); cardSequenceIndex = 0; cardVisible = false; cardElement.classList.remove('visible');
+            console.log("Starte Karten-Zyklus..."); scheduleNextCard();
+        }
+        function generateCardSequence(correctFormula) {
+            let sequence = [correctFormula]; let attempts = 0; const availableWrongFormulas = allFormulas.filter(f => f !== correctFormula);
+            while (sequence.length < 5 && attempts < 100) { if (availableWrongFormulas.length === 0) break; const randomIndex = Math.floor(Math.random() * availableWrongFormulas.length); const randomFormula = availableWrongFormulas[randomIndex]; if (!sequence.includes(randomFormula)) { sequence.push(randomFormula); } attempts++; }
+            while (sequence.length < 5 && availableWrongFormulas.length > 0) { const randomFormula = availableWrongFormulas[Math.floor(Math.random() * availableWrongFormulas.length)]; sequence.push(randomFormula); }
+            while (sequence.length < 5) { sequence.push(correctFormula); } return shuffleArray(sequence);
+        }
+        function scheduleNextCard() {
+            if (!gameActive || cardSequenceIndex >= cardSequence.length) { if (gameActive && cardSequenceIndex >= cardSequence.length) { console.log("Karten-Sequenz beendet, niemand hat richtig geraten."); setTimeout(nextRound, 500); } return; }
+            if (cardVisible) { cardElement.classList.remove('visible'); cardVisible = false; currentCardFormula = null; cardTimeout = setTimeout(showCard, 1000); } else { showCard(); }
+        }
+        function showCard() {
+            if (!gameActive || cardSequenceIndex >= cardSequence.length) return; currentCardFormula = cardSequence[cardSequenceIndex];
+            const formattedFormula = currentCardFormula.replace(/(\d+)/g, '<sub>$1</sub>'); cardElement.innerHTML = formattedFormula;
+            cardElement.classList.add('visible'); cardVisible = true; console.log(`Zeige Karte: ${currentCardFormula} (formatiert: ${formattedFormula})`);
+            cardTimeout = setTimeout(() => { if (cardVisible) { cardElement.classList.remove('visible'); cardVisible = false; currentCardFormula = null; console.log("Karte ausgeblendet."); cardSequenceIndex++; scheduleNextCard(); } }, 3000);
+        }
+
+        // *** Angepasste handleGrab Funktion (Punktevergabe) ***
+        function handleGrab(event) {
+            event.preventDefault(); if (!gameActive || !cardVisible || grabCooldown) { console.log("Greifen nicht möglich..."); return; } grabCooldown = true;
+            const handElement = event.currentTarget; const playerId = handElement.dataset.playerId; const player = players.find(p => p.id === playerId); if (!player) return; console.log(`${playerId} versucht zu greifen: ${currentCardFormula}`); handElement.classList.add('grabbing');
+            const correct = currentCardFormula === currentSalt.formula; cardElement.classList.remove('visible'); cardVisible = false; clearTimeout(cardTimeout);
+            if (correct) {
+                player.score += 1; // +1 Punkt
+                showMessage("✅"); console.log(`${playerId} korrekt! Score: ${player.score}`); updateScores();
+                setTimeout(() => { handElement.classList.remove('grabbing'); grabCooldown = false; nextRound(); }, 500);
+            }
+            else {
+                player.score -= 1; // -1 Punkt
+                showMessage("❌"); console.log(`${playerId} falsch! Score: ${player.score}`); updateScores();
+                setTimeout(() => { handElement.classList.remove('grabbing'); grabCooldown = false; cardSequenceIndex++; scheduleNextCard(); }, 500);
+            }
+        }
+        function endGame() {
+            console.log("Spielende!"); gameActive = false; clearTimeout(cardTimeout); cardElement.classList.remove('visible'); saltNameDisplay.textContent = "Spiel vorbei!";
+            if (isSinglePlayer) { const finalScore = players[0].score; singlePlayerResult.textContent = `Dein Ergebnis: ${finalScore} Punkte`; singlePlayerResult.style.display = 'block'; podiumContainer.style.display = 'none'; endScreen.querySelector('h2').textContent = "Spiel beendet!"; }
+            else { endScreen.querySelector('h2').textContent = "And the winner is…"; podiumContainer.style.display = 'flex'; singlePlayerResult.style.display = 'none'; players.sort((a, b) => b.score - a.score); let rank = 0; let lastScore = Infinity; let playersWithRank = []; players.forEach((player, index) => { if (player.score < lastScore) { rank = index + 1; } if (rank <= 3) { playersWithRank.push({ player: player, rank: rank }); } lastScore = player.score; }); podiumContainer.innerHTML = ''; const podiumSlots = [null, null, null]; playersWithRank.forEach(item => { const player = item.player; const currentRank = item.rank; const placeDiv = document.createElement('div'); placeDiv.classList.add('podium-place', `podium-rank-${currentRank}`); if (currentRank === 1) { const crownSpan = document.createElement('span'); crownSpan.classList.add('crown'); crownSpan.textContent = '👑'; placeDiv.appendChild(crownSpan); } const nameSpan = document.createElement('span'); nameSpan.classList.add('player-name'); nameSpan.textContent = `Spieler ${player.id.substring(1)}`; placeDiv.appendChild(nameSpan); const scoreSpan = document.createElement('span'); scoreSpan.classList.add('player-score-final'); scoreSpan.textContent = `${player.score} Punkte`; placeDiv.appendChild(scoreSpan); if (currentRank === 1) podiumSlots[1] = placeDiv; else if (currentRank === 2) podiumSlots[0] = placeDiv; else if (currentRank === 3) podiumSlots[2] = placeDiv; }); podiumSlots.forEach((slot, index) => { if (slot) { podiumContainer.appendChild(slot); } else { const emptyDiv = document.createElement('div'); if (index === 0) emptyDiv.classList.add('podium-place', 'podium-rank-2', 'podium-empty'); else if (index === 1) emptyDiv.classList.add('podium-place', 'podium-rank-1', 'podium-empty'); else if (index === 2) emptyDiv.classList.add('podium-place', 'podium-rank-3', 'podium-empty'); podiumContainer.appendChild(emptyDiv); } }); }
+            gameArea.classList.add('hidden'); endScreen.style.display = 'flex';
+        }
+        function restartGame() {
+            console.log("Neustart des Spiels."); endScreen.style.display = 'none'; startScreen.style.display = 'flex'; startErrorMessage.classList.add('hidden');
+        }
+        document.body.addEventListener('touchmove', function(event) { if (gameActive) { event.preventDefault(); } }, { passive: false });
+
+    </script>
+
+</body>
+</html>
