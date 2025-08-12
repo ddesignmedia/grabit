@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Grab it</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Externe Quellen (Google Fonts, Tailwind) wurden entfernt, um DSGVO-konform zu sein -->
+</head>
+<body>
+
+    <div id="start-screen">
+        <h1>Grab it</h1>
+        <div id="topic-selection">
+            <h3>Themen auswählen:</h3>
+            <div class="topic-item"> <input type="checkbox" id="topic-salts" value="salts" checked> <label for="topic-salts">Salze <small>(Bsp. NaCl)</small></label> </div>
+            <div class="topic-item"> <input type="checkbox" id="topic-molecular" value="molecular" checked> <label for="topic-molecular">Molekulare Verbindungen <small>(Bsp. CO₂)</small></label> </div>
+            <div class="topic-item"> <input type="checkbox" id="topic-acidsbases" value="acidsbases" checked> <label for="topic-acidsbases">Säuren & Basen <small>(Bsp. HCl, NaOH)</small></label> </div>
+            <div class="topic-item"> <input type="checkbox" id="topic-organic" value="organic" checked> <label for="topic-organic">Organische Verbindungen <small>(Bsp. CH₄)</small></label> </div>
+        </div>
+        <p>Anzahl der Spieler wählen:</p>
+        <div>
+            <button onclick="startGame(1)">1 Spieler</button>
+            <button onclick="startGame(2)">2 Spieler</button>
+            <button onclick="startGame(3)">3 Spieler</button>
+            <button onclick="startGame(4)">4 Spieler</button>
+        </div>
+        <!-- Tailwind-Klassen wurden durch die ID #start-error-message im CSS ersetzt -->
+        <p id="start-error-message" class="hidden"></p>
+    </div>
+
+    <!-- Tailwind-Klassen wurden durch die ID #game-area im CSS ersetzt -->
+    <div id="game-area" class="hidden">
+        <!-- Tailwind-Klassen wurden durch die ID #salt-name-display im CSS ersetzt -->
+        <div id="salt-name-display">Warte auf Start...</div>
+        <!-- Tailwind-Klassen wurden durch die ID #hands-container im CSS ersetzt -->
+        <div id="hands-container"></div>
+        <div id="card" class="card">Formel</div>
+        <div id="round-display"> Runde: 0 / 10 </div>
+    </div>
+
+    <div id="message-box" class="message-box"></div>
+
+    <div id="end-screen">
+        <h2>And the winner is…</h2>
+        <div id="podium-container"></div>
+        <div id="single-player-result"></div>
+        <button onclick="restartGame()">Nochmal spielen</button>
+    </div>
+
+    <script src="script.js"></script>
+
+</body>
+</html>
