@@ -113,6 +113,7 @@ function nextRound() {
     if (!currentSalt) { console.error(`Fehler: Kein currentSalt für Runde ${currentRound} gefunden.`); gameActive = false; return; }
     saltNameDisplay.textContent = currentSalt.name; console.log(`Aktuelles Salz: ${currentSalt.name} (Formel: ${currentSalt.formula})`);
     cardSequence = generateCardSequence(currentSalt.formula); cardSequenceIndex = 0; cardVisible = false; cardElement.classList.remove('visible');
+    cardElement.innerHTML = ''; // Karte vor dem Start der Sequenz leeren
     console.log("Starte Karten-Zyklus..."); scheduleNextCard();
 }
 function generateCardSequence(correctFormula) {
@@ -129,14 +130,18 @@ function showCard() {
     if (!gameActive || cardSequenceIndex >= cardSequence.length) return; currentCardFormula = cardSequence[cardSequenceIndex];
     const formattedFormula = currentCardFormula.replace(/(\d+)/g, '<sub>$1</sub>'); cardElement.innerHTML = formattedFormula;
     cardElement.classList.add('visible'); cardVisible = true; console.log(`Zeige Karte: ${currentCardFormula} (formatiert: ${formattedFormula})`);
-    cardTimeout = setTimeout(() => { if (cardVisible) { cardElement.classList.remove('visible'); cardVisible = false; currentCardFormula = null; console.log("Karte ausgeblendet."); cardSequenceIndex++; scheduleNextCard(); } }, 3000);
+    cardTimeout = setTimeout(() => { if (cardVisible) { cardElement.classList.remove('visible'); cardElement.innerHTML = ''; cardVisible = false; currentCardFormula = null; console.log("Karte ausgeblendet."); cardSequenceIndex++; scheduleNextCard(); } }, 3000);
 }
 
 // *** Angepasste handleGrab Funktion (Punktevergabe) ***
 function handleGrab(event) {
     event.preventDefault(); if (!gameActive || !cardVisible || grabCooldown) { console.log("Greifen nicht möglich..."); return; } grabCooldown = true;
     const handElement = event.currentTarget; const playerId = handElement.dataset.playerId; const player = players.find(p => p.id === playerId); if (!player) return; console.log(`${playerId} versucht zu greifen: ${currentCardFormula}`); handElement.classList.add('grabbing');
-    const correct = currentCardFormula === currentSalt.formula; cardElement.classList.remove('visible'); cardVisible = false; clearTimeout(cardTimeout);
+    const correct = currentCardFormula === currentSalt.formula;
+    cardElement.classList.remove('visible');
+    cardElement.innerHTML = ''; // Karte nach dem Greifen leeren
+    cardVisible = false;
+    clearTimeout(cardTimeout);
     if (correct) {
         player.score += 1; // +1 Punkt
         showMessage("✅"); console.log(`${playerId} korrekt! Score: ${player.score}`); updateScores();
