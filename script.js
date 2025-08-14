@@ -1,69 +1,62 @@
-// --- Strukturierte Daten für chemische Verbindungen ---
-const compoundData = {
-    salts: `Natriumchlorid (NaCl), Natriumoxid (Na₂O), Natriumbromid (NaBr), Natriumsulfid (Na₂S), Natriumsulfat (Na₂SO₄), Natriumnitrat (NaNO₃), Kaliumphosphat (K₃PO₄), Kaliumnitrit (KNO₂), Magnesiumchlorid (MgCl₂), Magnesiumoxid (MgO), Magnesiumsulfat (MgSO₄), Magnesiumnitrat (Mg(NO₃)₂), Magnesiumphosphat (Mg₃(PO₄)₂), Kaliumcarbid (K₄C), Aluminiumnitrit (Al(NO₂)₃), Aluminiumphosphat (AlPO₄), Eisen(III)oxid (Fe₂O₃), Eisen(II)oxid (FeO), Kupfer(II)oxid (CuO), Kupfer(I)oxid (Cu₂O), Kaliumpermanganat (KMnO₄), Chrom(III)sulfat (Cr₂(SO₄)₃), Zink(II)carbonat (ZnCO₃), Natriumsulfit (Na₂SO₃), Kaliumphosphit (K₂SO₃)`,
-    molecular: `Schwefeldioxid (SO₂), Schwefeltrioxid (SO₃), Kohlenstoffmonoxid (CO), Kohlenstoffdioxid (CO₂), Diphosphorpentaoxid (P₂O₅), Chlordioxid (ClO₂), Distickstofftetraoxid (N₂O₄), Distickstoffmonoxid (N₂O), Stickstoffmonoxid (NO), Stickstoffdioxid (NO₂), Dichloromonoxid (Cl₂O), Dichlorheptoxid (Cl₂O₇), Siliciumdioxid (SiO₂), Phosphortrichlorid (PCl₃), Phosphorpentachlorid (PCl₅), Schwefelhexafluorid (SF₆), Schwefeltetrachlorid (SCl₄), Kohlenstofftetrachlorid (CCl₄), Dibortrioxid (B₂O₃), Arsentrioxid (As₂O₃), Diiodpentaoxid (I₂O₅), Xenondifluorid (XeF₂)`,
-    acidsbases: `Salzsäure (HCl), Schwefelsäure (H₂SO₄), Phosphorsäure (H₃PO₄), Phosphorige Säure (H₃PO₃), Schweflige Säure (H₂SO₃), Kohlensäure (H₂CO₃), Salpetersäure (HNO₃), Salpetrige Säure (HNO₂), Blausäure (HCN), Essigsäure (CH₃COOH), Natriumhydroxid (NaOH), Ammoniak (NH₃), Calciumhydroxid (Ca(OH)₂), Kalkwasser (Ca(OH)₂), Kaliumhydroxid (KOH), Natronlauge (NaOH), Flusssäure (HF)`,
-    organic: `Methan (CH₄), Ethan (C₂H₆), Ethen (C₂H₄), Ethin (C₂H₂), Methanol (CH₃OH), Ethanol (C₂H₅OH), Essigsäure (CH₃COOH), Propen (C₃H₆), Propan (C₃H₈), But-1-in (C₄H₆), Aceton (C₃H₆O), Acetaldehyd (C₂H₄O)`
-};
-
-// *** Überarbeitete parseCompoundString Funktion ***
-function parseCompoundString(compoundString) {
-    const compounds = [];
-    const regex = /^(.*?)\s+\(([^()]+)\)$/;
-    compoundString.split(',').forEach(part => {
-        const trimmedPart = part.trim();
-        if (trimmedPart) {
-            const match = trimmedPart.match(regex);
-            if (match && match[1] && match[2]) {
-                compounds.push({ name: match[1].trim(), formula: match[2].trim() });
-            } else {
-                 const complexRegex = /^(.*?)\s+\((.*)\)$/;
-                 const complexMatch = trimmedPart.match(complexRegex);
-                 if (complexMatch && complexMatch[1] && complexMatch[2]) {
-                      compounds.push({ name: complexMatch[1].trim(), formula: complexMatch[2].trim() });
-                 } else { console.warn(`Konnte Teil nicht parsen (kein klares Format): "${trimmedPart}"`); }
-            }
-        }
-    });
-    return compounds;
-}
-
-
-// --- Parsed Daten und Gesamtliste ---
-let parsedCompoundData = {}; let allParsedCompounds = []; let allFormulas = [];
+// --- Globaler Zustand für Spieldaten ---
+let parsedCompoundData = {};
+let allParsedCompounds = [];
+let allFormulas = [];
 let dataInitializationError = false;
 
-// *** Initialisierungsfunktion mit Fehlerbehandlung ***
-function initializeCompoundData() {
-     dataInitializationError = false;
-     try {
-        parsedCompoundData = {}; allParsedCompounds = []; allFormulas = [];
-        for (const category in compoundData) {
-            if (compoundData.hasOwnProperty(category)) {
-                parsedCompoundData[category] = parseCompoundString(compoundData[category]);
+// *** Asynchrone Initialisierungsfunktion mit Fehlerbehandlung ***
+async function initializeCompoundData() {
+    dataInitializationError = false;
+    const startButtons = document.querySelectorAll('#start-screen button');
+
+    // Deaktiviere Start-Buttons, während die Daten geladen werden
+    startButtons.forEach(button => {
+        button.disabled = true;
+        button.style.opacity = '0.5';
+        button.style.cursor = 'not-allowed';
+    });
+
+    try {
+        const response = await fetch('compounds.json');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const compoundData = await response.json();
+
+        parsedCompoundData = compoundData; // Die Daten sind bereits im richtigen Format
+        allParsedCompounds = [];
+        for (const category in parsedCompoundData) {
+            if (parsedCompoundData.hasOwnProperty(category)) {
                 allParsedCompounds = allParsedCompounds.concat(parsedCompoundData[category]);
             }
-        }
-        const totalSourceEntries = Object.values(compoundData).reduce((sum, str) => sum + (str.split(',').filter(s => s.trim() !== '').length), 0);
-        if(allParsedCompounds.length !== totalSourceEntries) {
-            console.warn(`Parsing Diskrepanz: ${totalSourceEntries} Einträge erwartet, ${allParsedCompounds.length} geparst.`);
         }
 
         allFormulas = [...new Set(allParsedCompounds.map(c => c.formula).concat([
             "H₂O", "O₂", "N₂", "H₂", "C₆H₁₂O₆", "FeCl₂", "AgNO₃", "H₂O₂", "SO₂", "P₄O₁₀", "NO₂"
         ]))];
-        console.log("Verbindungsdaten initialisiert und geparst. Anzahl Verbindungen:", allParsedCompounds.length);
-     } catch (error) {
-         dataInitializationError = true;
-         console.error("Fehler bei der Initialisierung der Verbindungsdaten:", error);
-         const errorMsgElement = document.getElementById('start-error-message');
-         if(errorMsgElement) {
-             errorMsgElement.textContent = "Fehler beim Laden der Chemiedaten. Bitte Code prüfen.";
-             errorMsgElement.classList.remove('hidden');
-         }
-     }
- }
-initializeCompoundData();
+
+        console.log("Verbindungsdaten erfolgreich geladen und verarbeitet. Anzahl Verbindungen:", allParsedCompounds.length);
+
+        // Aktiviere die Start-Buttons wieder
+        startButtons.forEach(button => {
+            button.disabled = false;
+            button.style.opacity = '1';
+            button.style.cursor = 'pointer';
+        });
+
+    } catch (error) {
+        dataInitializationError = true;
+        console.error("Fehler beim Laden der Verbindungsdaten:", error);
+        const errorMsgElement = document.getElementById('start-error-message');
+        if (errorMsgElement) {
+            errorMsgElement.textContent = "Fehler beim Laden der Spieldaten. Bitte die Seite neu laden.";
+            errorMsgElement.classList.remove('hidden');
+        }
+    }
+}
+
+// Initialisiere die Daten, sobald das DOM geladen ist
+document.addEventListener('DOMContentLoaded', initializeCompoundData);
 
 // --- Spiel Zustand ---
 let players = []; let currentRound = 0; const totalRounds = 10; let currentSalt = null; let currentCardFormula = null; let cardVisible = false; let cardTimeout = null; let cardSequence = []; let cardSequenceIndex = 0; let gameActive = false; let grabCooldown = false; let roundSalts = [];
